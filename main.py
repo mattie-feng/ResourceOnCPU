@@ -13,7 +13,7 @@ def get_hexadecimal_number(number):
 
 class SetInputParser(object):
     def __init__(self):
-        self.parser = argparse.ArgumentParser(prog="Create resource and set it run on CPU")
+        self.parser = argparse.ArgumentParser(prog="Create resources and set resource run on CPU core")
         self.set_parser()
 
     def set_parser(self):
@@ -27,7 +27,7 @@ class SetInputParser(object):
                                  help='The number of resource that you want to create',
                                  action='store')
         self.parser.add_argument('-s',
-                                 '--Size',
+                                 '--size',
                                  dest='size',
                                  help='The size of resource that you want to create',
                                  action='store')
