@@ -1,7 +1,7 @@
+# -*- coding:utf-8 -*-
 import subprocess
 import time
 import argparse
-import os
 
 
 def get_hexadecimal_number(number):
@@ -33,18 +33,23 @@ class SetInputParser(object):
                                  action='store')
         self.parser.add_argument('-dfl',
                                  '--diskful',
+                                 metavar='NodeName',
+                                 nargs='+',
                                  dest='diskful',
-                                 help='Node name.Create the diskful resource on this node',
+                                 help='Create the diskful resource on one or more nodes',
                                  action='store')
         self.parser.add_argument('-sp',
                                  '--storagepool',
+                                 nargs='+',
                                  dest='storagepool',
-                                 help='Storagepool name.Create the diskful resource on this storagepool',
+                                 help='One to one correspondence with nodes which uesd to created diskful resource',
                                  action='store')
         self.parser.add_argument('-dl',
                                  '--diskless',
+                                 metavar='NodeName',
+                                 nargs='*',
                                  dest='diskless',
-                                 help='Node name.Create the diskless resource on this node',
+                                 help='Create the diskless resource on one or more nodes',
                                  action='store')
         self.parser.add_argument('-p',
                                  '--primary',
@@ -65,7 +70,9 @@ class SetInputParser(object):
         args.func(args)
 
     def run_func(self, args):
-        if args.name and args.number and args.size and args.diskful and args.storagepool and args.diskless:
+        if args.name and args.number and args.size and args.diskful and args.storagepool:
+            if len(args.diskful) != len(args.storagepool):
+                print("Check the Diskful Node and Storagepool that you input.")
             for i in range(args.number):
                 hexadecimal_number = get_hexadecimal_number(i)
                 resource_name = f'{args.name}_{i}'
@@ -100,17 +107,33 @@ class CreateResource(object):
     def create_resource(self):
         if self.exec_cmd(f"linstor resource-definition create {self.name}"):
             if self.exec_cmd(f'linstor volume-definition create {self.name} {self.size}'):
-                self.exec_cmd(f'linstor resource create {self.dfl} {self.name} --storage-pool {self.sp}')
-                self.exec_cmd(f'linstor resource create {self.dl} {self.name} --diskless')
+                # self.exec_cmd(f'linstor resource create {self.dfl} {self.name} --storage-pool {self.sp}')
+                # self.exec_cmd(f'linstor resource create {self.dl} {self.name} --diskless')
+                self.create_diskful_resource()
+                if self.dl is not None:
+                    self.create_diskless_resource()
+
+    def create_diskful_resource(self):
+        for dfl, sp in zip(self.dfl, self.sp):
+            self.exec_cmd(f'linstor resource create {dfl} {self.name} --storage-pool {sp}')
+        return True
+
+    def create_diskless_resource(self):
+        for dl in self.dl:
+            self.exec_cmd(f'linstor resource create {dl} {self.name} --diskless')
+        return True
 
     def set_resource_run_on_cpu(self):
         if self.exec_cmd(f'linstor rd drbd-options --cpu-mask {self.hexadecimal_number} {self.name}'):
             self.exec_cmd(f'drbdadm disconnect {self.name}')
             time.sleep(1)
             self.exec_cmd(f'drbdadm connect {self.name}')
+            time.sleep(1)
+        return True
 
     def set_primary(self):
         self.exec_cmd(f'drbdadm primary --force {self.name}')
+        return True
 
 
 if __name__ == '__main__':
